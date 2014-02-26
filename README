@@ -1,0 +1,38 @@
+Command Line Chapter Extractor for Blu-ray Disc
+============================================================
+
+## About ##
+
+bdchapters is a basic tool to generate XML based chapter format from mpls files (Blu-Ray Disc playlist format).
+
+
+### Usage:
+
+bdchapters -i <mpls file> -o <mkv xml chapter file>
+   
+
+## Notes ##
+
+ - requires Python 2.?
+
+
+## Copyright ##
+
+Copyright 2013 jamesthebard.net
+Homepage http://www.jamesthebard.net/blog/?p=125
+
+
+## License ##
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <http://www.gnu.org/licenses/>.
+

@@ -1,0 +1,100 @@
+#!/usr/bin/python
+#
+# HH:MM:SS.SSS - starts with 00:00:00.0000
+
+import optparse
+import string
+import math
+
+def generateMkvXml(line, chapterNum):
+    matroskaXml = "\t\t<ChapterAtom>\n"
+    matroskaXml += "\t\t\t<ChapterTimeStart>" + line.rstrip('\n') + "</ChapterTimeStart>\n"
+    matroskaXml += "\t\t\t<ChapterDisplay>\n"
+    matroskaXml += "\t\t\t\t<ChapterString>Chapter " + str(chapterNum) + "</ChapterString>\n"
+    matroskaXml += "\t\t\t\t<ChapterLanguage>eng</ChapterLanguage>\n"
+    matroskaXml += "\t\t\t</ChapterDisplay>\n"
+    matroskaXml += "\t\t</ChapterAtom>\n"
+    return matroskaXml   
+
+def returnTime( ptsMark, offset ):
+    ptsFreq = 45000
+    ptsMark -= offset
+    ptsTime = float(ptsMark) / float(ptsFreq)
+    ptsHour = math.modf(ptsTime / 3600)
+    ptsMinute = math.modf(float(ptsHour[0]) * 60)
+    ptsSecond = ptsMinute[0] * 60
+	
+    if ptsSecond >= 10:
+        return '%(hour)02d:%(minute)02d:%(second)02.3F' % {'hour': ptsHour[1], 'minute': ptsMinute[1], 'second': ptsSecond}
+    else:
+        return '%(hour)02d:%(minute)02d:0%(second)02.3F' % {'hour': ptsHour[1], 'minute': ptsMinute[1], 'second': ptsSecond}
+
+
+def main():
+    p = optparse.OptionParser(description=' Deconstructs the MPLS file and converts the PTS information to create properly formatted XML chapter file for Matroska.  This program needs the MPLS file from the BluRay disc associated with the M2TS file(s) that you are processing.',
+                              prog='bdchapters',
+                              version='BluRay Chapter Converter 0.3',
+                              usage='%prog -i [inputfile] -o [outputfile]')
+    p.add_option('--input', '-i', action="store", help='the MPLS file from the BluRay disc', dest="inputfile")
+    p.add_option('--output', '-o', action="store", help='the output XML file', dest="outputfile")
+    (options, arguments) = p.parse_args()
+    
+    if options.inputfile == None:
+        p.error("no inputfile specified.")   
+    elif options.outputfile == None:
+        options.outputfile = options.inputfile + ".xml"
+    
+    print "\n"
+    print 'Input file: %s' % options.inputfile
+    print 'Output file: %s' % options.outputfile
+    print "\n"
+
+    matroskaXmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<Chapters>\n\t<EditionEntry>\n"
+    matroskaXmlFooter = "\t</EditionEntry>\n</Chapters>"
+    
+    input = open(options.inputfile, 'rb')	
+    output = open(options.outputfile, 'w')
+    
+    output.write(matroskaXmlHeader)
+
+    count = 0
+
+    bytelist = []
+    ptsinfo = []
+    
+    input.seek(-14, 2)
+    for x in range(14):
+        bytelist.append(input.read(1))
+        
+    ptsinfo.append(ord(bytelist[4])*(256**3) + ord(bytelist[5])*(256**2) + ord(bytelist[6])*(256) + ord(bytelist[7]))
+
+    while True:
+        input.seek(-28, 1)
+        bytelist = []
+        for x in range(14):
+            bytelist.append(input.read(1))
+
+        if ord(bytelist[13]) != 0:
+            break
+
+        ptsinfo.append(ord(bytelist[4])*(256**3) + ord(bytelist[5])*(256**2) + ord(bytelist[6])*(256) + ord(bytelist[7]))
+        if ptsinfo[-1] == ptsinfo[-2]:
+            ptsinfo.pop([-1])
+            break
+
+    ptsOffset = ptsinfo[-1]
+    ptsinfo.sort()
+    
+    for x in ptsinfo:
+        count += 1
+        timeStamp = returnTime( x, ptsOffset )
+        output.write(generateMkvXml(timeStamp, count))
+
+    output.write(matroskaXmlFooter)
+	
+    input.close()
+    output.close()
+
+	
+if __name__ == '__main__':
+    main()
