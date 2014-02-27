@@ -6,7 +6,7 @@ Command Line Chapter Extractor for Blu-ray Disc
 bdchapters is a basic tool to generate XML based chapter format from mpls files (Blu-Ray Disc playlist format).
 
 
-### Usage:
+### Usage ##
 
 bdchapters -i <mpls file> -o <mkv xml chapter file>
    
@@ -19,7 +19,6 @@ bdchapters -i <mpls file> -o <mkv xml chapter file>
 ## Copyright ##
 
 Copyright 2013 jamesthebard.net
-Homepage http://www.jamesthebard.net/blog/?p=125
 
 
 ## License ##
