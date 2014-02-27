@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # HH:MM:SS.SSS - starts with 00:00:00.0000
 
@@ -33,7 +33,7 @@ def returnTime( ptsMark, offset ):
 def main():
     p = optparse.OptionParser(description=' Deconstructs the MPLS file and converts the PTS information to create properly formatted XML chapter file for Matroska.  This program needs the MPLS file from the BluRay disc associated with the M2TS file(s) that you are processing.',
                               prog='bdchapters',
-                              version='BluRay Chapter Converter 0.3',
+                              version='BluRay Chapter Converter 0.4',
                               usage='%prog -i [inputfile] -o [outputfile]')
     p.add_option('--input', '-i', action="store", help='the MPLS file from the BluRay disc', dest="inputfile")
     p.add_option('--output', '-o', action="store", help='the output XML file', dest="outputfile")
@@ -44,10 +44,10 @@ def main():
     elif options.outputfile == None:
         options.outputfile = options.inputfile + ".xml"
     
-    print "\n"
-    print 'Input file: %s' % options.inputfile
-    print 'Output file: %s' % options.outputfile
-    print "\n"
+    print("\n")
+    print('Input file: %s' % options.inputfile)
+    print('Output file: %s' % options.outputfile)
+    print("\n")
 
     matroskaXmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<Chapters>\n\t<EditionEntry>\n"
     matroskaXmlFooter = "\t</EditionEntry>\n</Chapters>"
