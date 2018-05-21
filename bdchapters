@@ -13,7 +13,7 @@ def generateMkvXml(line, chapterNum):
     matroskaXml += "\t\t\t<ChapterTimeStart>" + line.rstrip('\n') + "</ChapterTimeStart>\n"
     matroskaXml += "\t\t\t<ChapterDisplay>\n"
     matroskaXml += "\t\t\t\t<ChapterString>Chapter " + str(chapterNum) + "</ChapterString>\n"
-#    matroskaXml += "\t\t\t\t<ChapterLanguage>eng</ChapterLanguage>\n"
+    matroskaXml += "\t\t\t\t<ChapterLanguage>eng</ChapterLanguage>\n"
     matroskaXml += "\t\t\t</ChapterDisplay>\n"
     matroskaXml += "\t\t</ChapterAtom>\n"
     return matroskaXml   
@@ -44,9 +44,10 @@ def main():
     if options.inputfile == None:
         p.error("no inputfile specified.")   
     elif options.outputdir == None:
-        options.outputdir = os.path.dirname(options.inputfile) #replace the file extension
-    elif options.outputdir[-1] == '/':
-        options.outputdir = options.outputdir[:-1]
+        options.outputdir = os.path.dirname(options.inputfile) # same directory as input file
+    
+    if options.outputdir[-1] != '/':
+        options.outputdir = += '/' # add trailing slash
     
     print("\n")
     print('Input file:', options.inputfile)
@@ -57,14 +58,14 @@ def main():
     
     playlist_address = 0
     playlist_mark_address = 0
-    playitems = []
+    playitems = [] # array of playitem in the form [playitem_name, in_time, [playlist_mark_1, ...]]
 
     input.seek(8, 0)
     playlist_address = int.from_bytes(input.read(4), byteorder='big') # Playlist position at $08-$0B
     input.seek(12, 0)
     playlist_mark_address = int.from_bytes(input.read(4), byteorder='big') # Playlist Mark position at $0C-$0F
 
-    input.seek(playlist_address + 6, 0) # don't care about the length of the playlist (4 byte) and reserve (2 byte)
+    input.seek(playlist_address + 6, 0) # don't care about the playlist's length (4 byte) and reserve (2 byte)
     num_of_playitems = int.from_bytes(input.read(2), byteorder='big')
     input.seek(2, 1) # skip number of subpath (not sure what subpath means)
     for x in range(num_of_playitems):
@@ -72,11 +73,10 @@ def main():
         playitem_name = input.read(5).decode("ascii")
         input.seek(7, 1) # skip "M2TS" and connection_condition
         in_time = int.from_bytes(input.read(4), byteorder='big')
-        #out_time = int.from_bytes(input.read(4), byteorder='big')
         playitems.append([playitem_name, in_time, []])
         input.seek(playitem_len - 16, 1) # next play item
 
-    input.seek(playlist_mark_address + 4, 0) # don't care about the length of the playlist marks
+    input.seek(playlist_mark_address + 4, 0) # don't care about the playlist marks' total length
     num_of_playlist_marks = int.from_bytes(input.read(2), byteorder='big')
     for x in range(num_of_playlist_marks):
         input.seek(2, 1) # skip mark_type
@@ -92,7 +92,8 @@ def main():
     
     for playitem in playitems:
         if playitem[2]:
-            outputfile = options.outputdir + "/" + os.path.basename(options.inputfile)[:-4] + playitem[0] + ".xml"
+            # for xxxxx.mpls generate xxxxx.yyyyy.xml, where yyyyy are the name of m2ts referenced in playitem and have playlist_marks. 
+            outputfile = options.outputdir + os.path.basename(options.inputfile)[:-4] + playitem[0] + ".xml" 
             print("writing to ", os.path.basename(outputfile))
             output = open(outputfile, 'w')
             output.write(matroskaXmlHeader)
