@@ -49,8 +49,8 @@ def main():
         options.outputdir = options.outputdir[:-1]
     
     print("\n")
-    print('Input file: %s' % options.inputfile)
-    print('Output directory: %s' % options.outputdir)
+    print('Input file:', options.inputfile)
+    print('Output directory:', options.outputdir)
     print("\n")
 
     input = open(options.inputfile, 'rb')	
@@ -58,13 +58,11 @@ def main():
     playlist_address = 0
     playlist_mark_address = 0
     playitems = []
-    playlist_marks = []
 
     input.seek(8, 0)
     playlist_address = int.from_bytes(input.read(4), byteorder='big') # Playlist position at $08-$0B
     input.seek(12, 0)
     playlist_mark_address = int.from_bytes(input.read(4), byteorder='big') # Playlist Mark position at $0C-$0F
-    print("From", options.inputfile, "got addresses:", hex(playlist_address), "and", hex(playlist_mark_address))
 
     input.seek(playlist_address + 6, 0) # don't care about the length of the playlist (4 byte) and reserve (2 byte)
     num_of_playitems = int.from_bytes(input.read(2), byteorder='big')
@@ -75,9 +73,8 @@ def main():
         input.seek(7, 1) # skip "M2TS" and connection_condition
         in_time = int.from_bytes(input.read(4), byteorder='big')
         #out_time = int.from_bytes(input.read(4), byteorder='big')
-        playitems.append([x, playitem_name, in_time])
+        playitems.append([playitem_name, in_time, []])
         input.seek(playitem_len - 16, 1) # next play item
-    print("Got", num_of_playitems, "playitems", playitems)
 
     input.seek(playlist_mark_address + 4, 0) # don't care about the length of the playlist marks
     num_of_playlist_marks = int.from_bytes(input.read(2), byteorder='big')
@@ -85,26 +82,25 @@ def main():
         input.seek(2, 1) # skip mark_type
         playitem_ref = int.from_bytes(input.read(2), byteorder='big')
         time = int.from_bytes(input.read(4), byteorder='big')
-        playlist_marks.append([playitem_ref, time])
+        playitems[playitem_ref][2].append(time)
         input.seek(6, 1) # next playlist mark
-    print("Got", num_of_playlist_marks, "playlist_marks:", playlist_marks)
+
+    input.close()
 
     matroskaXmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<Chapters>\n\t<EditionEntry>\n"
     matroskaXmlFooter = "\t</EditionEntry>\n</Chapters>"
     
     for playitem in playitems:
-        count = 0
-        outputfile = options.outputdir + "/" + os.path.basename(options.inputfile)[:-4] + playitem[1] + ".xml"
-        print("writing to ", outputfile)
-        output = open(outputfile, 'w')
-        output.write(matroskaXmlHeader)
-        for playlist_mark in playlist_marks:
-            if playlist_mark[0] == playitem[0]:
-                count += 1
-                timestamp = returnTime(playlist_mark[1], playitem[2])
-                output.write(generateMkvXml(timestamp, count))
-        output.write(matroskaXmlFooter)
-        output.close()
+        if playitem[2]:
+            outputfile = options.outputdir + "/" + os.path.basename(options.inputfile)[:-4] + playitem[0] + ".xml"
+            print("writing to ", os.path.basename(outputfile))
+            output = open(outputfile, 'w')
+            output.write(matroskaXmlHeader)
+            for count in range(len(playitem[2])):
+                timestamp = returnTime(playitem[2][count], playitem[1])
+                output.write(generateMkvXml(timestamp, count + 1))
+            output.write(matroskaXmlFooter)
+            output.close()
 
 
 if __name__ == '__main__':
