@@ -40,7 +40,7 @@ def main():
                               usage='%prog -i <inputfile> [-o <outputdir>] [-s]')
     p.add_option('--input', '-i', action="store", help='the MPLS file from the BluRay disc', dest="inputfile")
     p.add_option('--output', '-o', action="store", help='the directory for output XML files', dest="outputdir")
-    p.add_option('--split', '-s', action="store_true", help='split the output XML file according to match the M2TS files', dest="split")
+    p.add_option('--split', '-s', action="store_true", help='split the output XML file to match the M2TS files', dest="split")
     (options, arguments) = p.parse_args()
     
     if options.inputfile == None:
