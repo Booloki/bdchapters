@@ -45,8 +45,9 @@ def main():
     
     if options.inputfile == None:
         p.error("no inputfile specified.")   
-    elif options.outputdir == None:
-        options.outputdir = os.path.dirname(options.inputfile) # same directory as input file
+
+    if options.outputdir == None:
+        options.outputdir = './' + os.path.dirname(options.inputfile) # same directory as input file
     
     if options.outputdir[-1] != '/':
         options.outputdir += '/' # add trailing slash
