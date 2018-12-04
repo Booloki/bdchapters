@@ -5,6 +5,8 @@
 import optparse
 import string
 import math
+import os
+
 
 def generateMkvXml(line, chapterNum):
     matroskaXml = "\t\t<ChapterAtom>\n"
@@ -16,9 +18,10 @@ def generateMkvXml(line, chapterNum):
     matroskaXml += "\t\t</ChapterAtom>\n"
     return matroskaXml   
 
-def returnTime( ptsMark, offset ):
+def returnTime( ptsMark, offset ,prev=0):
     ptsFreq = 45000
     ptsMark -= offset
+    ptsMark += prev
     ptsTime = float(ptsMark) / float(ptsFreq)
     ptsHour = math.modf(ptsTime / 3600)
     ptsMinute = math.modf(float(ptsHour[0]) * 60)
@@ -33,68 +36,94 @@ def returnTime( ptsMark, offset ):
 def main():
     p = optparse.OptionParser(description=' Deconstructs the MPLS file and converts the PTS information to create properly formatted XML chapter file for Matroska.  This program needs the MPLS file from the BluRay disc associated with the M2TS file(s) that you are processing.',
                               prog='bdchapters',
-                              version='BluRay Chapter Converter 0.4',
-                              usage='%prog -i [inputfile] -o [outputfile]')
+                              version='BluRay Chapter Converter 0.5',
+                              usage='%prog -i <inputfile> [-o <outputdir>] [-s]')
     p.add_option('--input', '-i', action="store", help='the MPLS file from the BluRay disc', dest="inputfile")
-    p.add_option('--output', '-o', action="store", help='the output XML file', dest="outputfile")
+    p.add_option('--output', '-o', action="store", help='the directory for output XML files', dest="outputdir")
+    p.add_option('--split', '-s', action="store_true", help='split the output XML file to match the M2TS files', dest="split")
     (options, arguments) = p.parse_args()
     
     if options.inputfile == None:
         p.error("no inputfile specified.")   
-    elif options.outputfile == None:
-        options.outputfile = options.inputfile + ".xml"
+
+    if options.outputdir == None:
+        options.outputdir = './' + os.path.dirname(options.inputfile) # same directory as input file
     
-    print("\n")
-    print('Input file: %s' % options.inputfile)
-    print('Output file: %s' % options.outputfile)
-    print("\n")
+    if options.outputdir[-1] != '/':
+        options.outputdir += '/' # add trailing slash
+    
+    print('\n')
+    print('Input file:', options.inputfile)
+    print('Output directory:', options.outputdir)
+
+    input = open(options.inputfile, 'rb')	
+    
+    playlist_address = 0
+    playlist_mark_address = 0
+    playitems = [] # array of playitem in the form [playitem_name, in_time, [playlist_mark_1, ...]]
+
+    input.seek(8, 0)
+    playlist_address = int.from_bytes(input.read(4), byteorder='big') # Playlist position at $08-$0B
+    input.seek(12, 0)
+    playlist_mark_address = int.from_bytes(input.read(4), byteorder='big') # Playlist Mark position at $0C-$0F
+
+    input.seek(playlist_address + 6, 0) # don't care about the playlist's length (4 byte) and reserve (2 byte)
+    num_of_playitems = int.from_bytes(input.read(2), byteorder='big')
+    input.seek(2, 1) # skip number of subpath (not sure what subpath means)
+    for x in range(num_of_playitems):
+        playitem_len = int.from_bytes(input.read(2), byteorder='big')
+        playitem_name = input.read(5).decode("ascii")
+        input.seek(7, 1) # skip "M2TS" and connection_condition
+        in_time = int.from_bytes(input.read(4), byteorder='big')
+        out_time = int.from_bytes(input.read(4), byteorder='big')
+        playitems.append([playitem_name, in_time, out_time, []])
+        input.seek(playitem_len - 20, 1) # next play item
+
+    input.seek(playlist_mark_address + 4, 0) # don't care about the playlist marks' total length
+    num_of_playlist_marks = int.from_bytes(input.read(2), byteorder='big')
+    for x in range(num_of_playlist_marks):
+        input.seek(2, 1) # skip mark_type
+        playitem_ref = int.from_bytes(input.read(2), byteorder='big')
+        time = int.from_bytes(input.read(4), byteorder='big')
+        playitems[playitem_ref][3].append(time)
+        input.seek(6, 1) # next playlist mark
+
+    input.close()
 
     matroskaXmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<Chapters>\n\t<EditionEntry>\n"
     matroskaXmlFooter = "\t</EditionEntry>\n</Chapters>"
     
-    input = open(options.inputfile, 'rb')	
-    output = open(options.outputfile, 'w')
-    
-    output.write(matroskaXmlHeader)
+    if options.split:
+        for playitem in playitems:
+            if playitem[3]:
+                # for xxxxx.mpls generate yyyyy.xxxxx.xml, where yyyyy are the name of m2ts referenced in playitem 
+                # and have playlist_marks. 
+                outputfile = options.outputdir + playitem[0] + '.' + os.path.basename(options.inputfile)[:-4] + 'xml' 
+                print("writing to ", os.path.basename(outputfile))
+                output = open(outputfile, 'w')
+                output.write(matroskaXmlHeader)
+                for count in range(len(playitem[3])):
+                    timestamp = returnTime(playitem[3][count], playitem[1])
+                    output.write(generateMkvXml(timestamp, count + 1))
+                output.write(matroskaXmlFooter)
+                output.close()
+    else:
+        outputfile = options.outputdir + os.path.basename(options.inputfile)[:-4] + 'xml' 
+        print("writing to ", os.path.basename(outputfile))
+        output = open(outputfile, 'w')
+        output.write(matroskaXmlHeader)
+        acc = 0
+        count = 0
+        for playitem in playitems:
+            if playitem[3]:
+                for playlist_mark in playitem[3]:
+                    timestamp = returnTime(playlist_mark, playitem[1], acc)
+                    count += 1
+                    output.write(generateMkvXml(timestamp, count))
+            acc += playitem[2] - playitem[1]
+        output.write(matroskaXmlFooter)
+        output.close()
 
-    count = 0
 
-    bytelist = []
-    ptsinfo = []
-    
-    input.seek(-14, 2)
-    for x in range(14):
-        bytelist.append(input.read(1))
-        
-    ptsinfo.append(ord(bytelist[4])*(256**3) + ord(bytelist[5])*(256**2) + ord(bytelist[6])*(256) + ord(bytelist[7]))
-
-    while True:
-        input.seek(-28, 1)
-        bytelist = []
-        for x in range(14):
-            bytelist.append(input.read(1))
-
-        if ord(bytelist[13]) != 0:
-            break
-
-        ptsinfo.append(ord(bytelist[4])*(256**3) + ord(bytelist[5])*(256**2) + ord(bytelist[6])*(256) + ord(bytelist[7]))
-        if ptsinfo[-1] == ptsinfo[-2]:
-            ptsinfo.pop([-1])
-            break
-
-    ptsOffset = ptsinfo[-1]
-    ptsinfo.sort()
-    
-    for x in ptsinfo:
-        count += 1
-        timeStamp = returnTime( x, ptsOffset )
-        output.write(generateMkvXml(timeStamp, count))
-
-    output.write(matroskaXmlFooter)
-	
-    input.close()
-    output.close()
-
-	
 if __name__ == '__main__':
     main()

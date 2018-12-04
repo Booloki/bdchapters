@@ -8,17 +8,19 @@ bdchapters is a basic tool to generate XML based chapter format from mpls files 
 
 ### Usage ##
 
-bdchapters -i <mpls file> -o <mkv xml chapter file>
-   
+bdchapters -i <mpls file> -o <directory for mkv xml chapter file> -s 
+
+Note on -s: Given input file xxxxx.mpls, the program will output chapter yyyyy.xxxxx.xml, zzzzz.xxxxx.xml, etc.; each corresponds to yyyyy.m2ts, zzzzz.m2ts, etc. that are used by xxxxx.mpls.
 
 ## Notes ##
 
- - requires Python 2.?
+ - requires Python 3.2+
 
 
 ## Copyright ##
 
 Copyright 2013 jamesthebard.net
+Copyright 2018 tleydxdy
 
 
 ## License ##
